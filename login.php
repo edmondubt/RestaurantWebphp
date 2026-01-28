@@ -137,7 +137,7 @@ box-shadow: 0 8px 15px rgba(0,0,0,0.2);
     }
     if (valid) {
         alert('Login me sukses!');
-        window.location.href = 'home.html';
+        window.location.href = 'home.php';
     }
 });
 

@@ -152,9 +152,9 @@ h3{
     <div class="logo">AP Restaurant</div>
     <ul class="nav-links">
         <li><a href="home.php">Home</a></li>
-        <li><a href="Menu.html">Menu</a></li>
+        <li><a href="menu.php">Menu</a></li>
         <li><a href="contact.php">Kontaktet</a></li>
-        <li><a href="">Rezervimet</a></li>
+        <li><a href="login.php">Login</a></li>
     </ul>
 </nav>
 </header>
