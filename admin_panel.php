@@ -3,11 +3,11 @@ require_once "admin_guard.php";
 require_once "db.php";
 
 $conn = (new Database())->connect();
+
 function h($s)
 {
   return htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
 }
-
 if (!isset($_SESSION["flash"]))
   $_SESSION["flash"] = "";
 
@@ -18,6 +18,28 @@ function flash($msg)
   exit;
 }
 
+function upload_simple($field, $oldPath = null)
+{
+  if (empty($_FILES[$field]) || $_FILES[$field]["error"] === UPLOAD_ERR_NO_FILE)
+    return $oldPath;
+
+  $dirFs = __DIR__ . "/images/menu";
+  if (!is_dir($dirFs))
+    mkdir($dirFs, 0777, true);
+
+  $ext = pathinfo($_FILES[$field]["name"], PATHINFO_EXTENSION); // edhe nese s'ka ext, prap punon
+  $name = time() . "_" . rand(1000, 9999) . ($ext ? "." . $ext : "");
+  $destFs = $dirFs . "/" . $name;
+  $destRel = "images/menu/" . $name;
+
+  move_uploaded_file($_FILES[$field]["tmp_name"], $destFs);
+
+
+  if ($oldPath && file_exists(__DIR__ . "/" . $oldPath))
+    @unlink(__DIR__ . "/" . $oldPath);
+
+  return $destRel;
+}
 
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["add"])) {
   $cid = (int) ($_POST["category_id"] ?? 0);
@@ -26,12 +48,21 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["add"])) {
   $d = trim($_POST["description"] ?? "");
 
   if ($cid <= 0 || $t === "" || $p <= 0)
-    flash(" Plotëso Category / Title / Price");
+    flash("Plotëso Category / Title / Price");
 
-  $st = $conn->prepare("INSERT INTO menu_items(category_id,title,price,description,is_active)
-                        VALUES(:c,:t,:p,:d,1)");
-  $ok = $st->execute([":c" => $cid, ":t" => $t, ":p" => $p, ":d" => ($d === "" ? null : $d)]);
-  flash($ok ? " U shtua" : " Gabim");
+  $imgPath = upload_simple("image", null);
+
+  $st = $conn->prepare("INSERT INTO menu_items(category_id,title,price,description,image_path,is_active)
+                        VALUES(:c,:t,:p,:d,:img,1)");
+  $ok = $st->execute([
+    ":c" => $cid,
+    ":t" => $t,
+    ":p" => $p,
+    ":d" => ($d === "" ? null : $d),
+    ":img" => $imgPath
+  ]);
+
+  flash($ok ? "U shtua" : "Gabim");
 }
 
 
@@ -43,31 +74,52 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["save"])) {
   $d = trim($_POST["description"] ?? "");
 
   if ($id <= 0 || $cid <= 0 || $t === "" || $p <= 0)
-    flash(" Ploteso fushat ");
+    flash("Ploteso fushat");
+
+  $q = $conn->prepare("SELECT image_path FROM menu_items WHERE id=:id");
+  $q->execute([":id" => $id]);
+  $oldPath = $q->fetchColumn() ?: null;
+
+  $imgPath = upload_simple("image", $oldPath);
 
   $st = $conn->prepare("UPDATE menu_items
-                        SET category_id=:c,title=:t,price=:p,description=:d
+                        SET category_id=:c,title=:t,price=:p,description=:d,image_path=:img
                         WHERE id=:id");
-  $ok = $st->execute([":c" => $cid, ":t" => $t, ":p" => $p, ":d" => ($d === "" ? null : $d), ":id" => $id]);
-  flash($ok ? " U perditesua" : " Gabim");
+  $ok = $st->execute([
+    ":c" => $cid,
+    ":t" => $t,
+    ":p" => $p,
+    ":d" => ($d === "" ? null : $d),
+    ":img" => $imgPath,
+    ":id" => $id
+  ]);
+
+  flash($ok ? "U perditesua" : "Gabim");
 }
 
 
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["del"])) {
   $id = (int) ($_POST["id"] ?? 0);
   if ($id <= 0)
-    flash(" ID jo valid");
+    flash("ID jo valid");
+
+  $q = $conn->prepare("SELECT image_path FROM menu_items WHERE id=:id");
+  $q->execute([":id" => $id]);
+  $oldPath = $q->fetchColumn();
+  if ($oldPath && file_exists(__DIR__ . "/" . $oldPath))
+    @unlink(__DIR__ . "/" . $oldPath);
 
   $st = $conn->prepare("DELETE FROM menu_items WHERE id=:id");
   $ok = $st->execute([":id" => $id]);
-  flash($ok ? " U fshi" : " Gabim");
+
+  flash($ok ? "U fshi" : "Gabim");
 }
 
 
 $categories = $conn->query("SELECT id,name FROM menu_categories ORDER BY name")
   ->fetchAll(PDO::FETCH_ASSOC);
 
-$items = $conn->query("SELECT mi.id, mi.category_id, mi.title, mi.price, mi.description, mi.created_at,
+$items = $conn->query("SELECT mi.id, mi.category_id, mi.title, mi.price, mi.description, mi.image_path,
                               mc.name AS category_name
                        FROM menu_items mi
                        JOIN menu_categories mc ON mc.id=mi.category_id
@@ -183,14 +235,19 @@ $_SESSION["flash"] = "";
       color: #fff
     }
 
-    .btn.gray {
-      background: #e5e7eb
-    }
-
     .actions {
       display: flex;
       gap: 8px;
       flex-wrap: wrap
+    }
+
+    .thumb {
+      width: 54px;
+      height: 54px;
+      object-fit: cover;
+      border-radius: 10px;
+      border: 1px solid #eee;
+      background: #f3f4f6
     }
   </style>
 </head>
@@ -211,7 +268,7 @@ $_SESSION["flash"] = "";
 
     <div class="card">
       <h3 style="margin:0 0 10px">Shto Produkt</h3>
-      <form method="post" class="row" style="align-items:end">
+      <form method="post" enctype="multipart/form-data" class="row" style="align-items:end">
         <div>
           <label>Category</label>
           <select name="category_id" required>
@@ -220,18 +277,27 @@ $_SESSION["flash"] = "";
             <?php endforeach; ?>
           </select>
         </div>
+
         <div>
           <label>Price</label>
           <input name="price" type="number" step="0.01" required>
         </div>
+
         <div style="grid-column:1/-1">
           <label>Title</label>
           <input name="title" required>
         </div>
+
         <div style="grid-column:1/-1">
-          <label>Description (optional)</label>
+          <label>Description</label>
           <textarea name="description"></textarea>
         </div>
+
+        <div style="grid-column:1/-1">
+          <label>Foto</label>
+          <input type="file" name="image">
+        </div>
+
         <div style="grid-column:1/-1">
           <button class="btn blue" name="add" type="submit">Add</button>
         </div>
@@ -249,17 +315,20 @@ $_SESSION["flash"] = "";
             <th>Title</th>
             <th style="width:110px">Price</th>
             <th>Description</th>
-            <th style="width:160px">Actions</th>
+            <th style="width:110px">Foto</th>
+            <th style="width:190px">Actions</th>
           </tr>
         </thead>
         <tbody>
           <?php foreach ($items as $it): ?>
             <tr>
-              <form method="post">
+
+              <form method="post" enctype="multipart/form-data">
                 <td>
                   <?= (int) $it["id"] ?>
                   <input type="hidden" name="id" value="<?= (int) $it["id"] ?>">
                 </td>
+
                 <td>
                   <select name="category_id">
                     <?php foreach ($categories as $c): ?>
@@ -269,10 +338,25 @@ $_SESSION["flash"] = "";
                     <?php endforeach; ?>
                   </select>
                 </td>
+
                 <td><input name="title" value="<?= h($it["title"]) ?>"></td>
+
                 <td><input name="price" type="number" step="0.01"
                     value="<?= h(number_format((float) $it["price"], 2, '.', '')) ?>"></td>
+
                 <td><textarea name="description"><?= h($it["description"] ?? "") ?></textarea></td>
+
+                <td>
+                  <?php if (!empty($it["image_path"])): ?>
+                    <img class="thumb" src="<?= h($it["image_path"]) ?>" alt="">
+                  <?php else: ?>
+                    <div class="thumb"></div>
+                  <?php endif; ?>
+                  <div style="margin-top:8px">
+                    <input type="file" name="image">
+                  </div>
+                </td>
+
                 <td>
                   <div class="actions">
                     <button class="btn blue" name="save" type="submit">Save</button>
@@ -284,11 +368,11 @@ $_SESSION["flash"] = "";
               </form>
       </div>
       </td>
+
       </tr>
     <?php endforeach; ?>
     </tbody>
     </table>
-
   </div>
 
   </div>
