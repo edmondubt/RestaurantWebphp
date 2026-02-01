@@ -1,3 +1,12 @@
+<?php
+session_start();
+
+if (!isset($_SESSION['user_id'])) {
+    header('Location: login.php');
+    exit;
+}
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -119,6 +128,27 @@
     font-size: bold;
 }
 
+  .logout-btn {
+            background: transparent;
+            border: none;
+            color: #fff;
+            padding: 8px 15px;
+            border-radius: 5px;
+            transition: background 0.3s;
+            cursor: pointer;
+            font: inherit;
+            line-height: normal;
+        }
+        .nav-links li form{
+    margin: 0;
+    padding: 0;
+    display: inline;
+}
+
+        .logout-btn:hover {
+            background: #ff6347;
+        }
+
 nav {
     display: flex;
     justify-content: space-between;
@@ -182,17 +212,23 @@ ul, ol {
 
     </style>
 
-    <header style="margin: 7px;">
-        <nav> 
+      <header>
+        <nav>
             <div class="logo">AP Restaurant</div>
             <ul class="nav-links">
-                <li><a href="home.php">Home</a></li>
-                <li><a href="menu.php">Menu</a></li>
-                <li><a href="contact.php">Kontaktet</a></li>
-                <li><a href="login.php">Login</a></li>
+               <li><button class="logout-btn" onclick="window.location.href='home.php'">Home</button></li>
+                <li><button class="logout-btn" onclick="window.location.href='menu.php'">Menu</button></li>
+                <li><button class="logout-btn" onclick="window.location.href='contact.php'">Kontaktet</button></li>
+
+                <li>
+                    <form action="logout.php" method="post" style="display:inline;">
+                        <button type="submit" class="logout-btn">Logout</button>
+                    </form>
+                </li>
             </ul>
         </nav>
     </header>
+
 
 
   <div class="wrapper">
@@ -209,86 +245,51 @@ ul, ol {
         <p>&copy; 2024 Restaurant Aqua Park. All rights reserved.</p>
     </footer>
 
-    <script>
-
-        var categories = document.getElementById("categories");
+ <script>
+  var categories = document.getElementById("categories");
   var content = document.getElementById("content");
 
-  
-  var pije = [
-    { title: "Margarita", desc: "6.99$", img: "Img/photo2.png" },
-    { title: "Whiskey Sour", desc: "5.99$", img: "Img/photo3.png" },
-    { title: "Martini", desc: "7.99$", img: "Img/photo4.png" },
-    { title: "Negroni", desc: "6.99$", img: "Img/photo5.png" },
-    { title: "Aperol Spritz", desc: "5.99$", img: "Img/photo6.png" },
-    { title: "Mojito", desc: "5.99$", img: "Img/photo7.png" },
-    { title: "Espresso Martini", desc: "7.99%", img: "Img/photo8.png" },
-    { title: "Cosmopolitan", desc: "6.99$", img: "Img/photo9.png" },
-    { title: "French 75", desc: "8.99$", img: "Img/photo10.png" },
-    { title: "Chocolate Old Fashioned", desc: "7.99$", img: "Img/photo11.png" }
-  ];
-
-  var dessert = [
-    { title: "Crème Brûlée", desc: "7.99$", img: "Img/d1.png" },
-    { title: "Mochi", desc: "5.99", img: "Img/d2.png" },
-    { title: "Tiramisu", desc: "4.99$", img: "Img/d3.png" },
-    { title: "Apple Pie", desc: "4.99$", img: "Img/d4.png" },
-    { title: "Brownies", desc: "3.99$", img: "Img/d5.png" },
-    { title: "Nanaimo Bar", desc: "5.99$", img: "Img/d6.png" },
-    { title: "Churros", desc: "6.99$", img: "Img/d7.png" },
-    { title: "Cheesecake", desc: "5.99$", img: "Img/d8.png" },
-    { title: "Ice Cream", desc: "3.99$", img: "Img/d9.png" },
-    { title: "Gulab Jamun", desc: "6.99", img: "Img/d10.png" }
-  ];
-
-  var ushqim = [
-    { title: "Crisp Paupiette", desc: "28.99$", img: "Img/u1.png" },
-    { title: "Char in Beeswax", desc: "20.99$", img: "Img/u2.png" },
-    { title: "Artichoke Tart", desc: "24.99$", img: "Img/u3.png" },
-    { title: "Lobster Bay Caviar", desc: "32.99$", img: "Img/u4.png" },
-    { title: "Sushi Omakase", desc: "36.99$", img: "Img/u5.png" },
-    { title: "Parmigiano Reggiano", desc: "27.99$", img: "Img/u6.png" },
-    { title: "Millefeuille with Eel", desc: "42.99$", img: "Img/u7.png" },
-    { title: "Roasted Sladesdown Duck", desc: "40.99$", img: "Img/u8.png" },
-    { title: "Crayfish Tail Tartare", desc: "37.99$", img: "Img/u9.png" },
-    { title: "Potato and Roe", desc: "33.99$", img: "Img/u10.png" }
-  ];
-
-  
-  function showCategory(name) {
+  async function showCategory(name) {
     categories.className = "categories top";
     content.innerHTML = "";
 
-    var list;
+    try {
+      const res = await fetch("menu_api.php?category=" + encodeURIComponent(name));
+      const list = await res.json();
 
-    if (name === "pije") {
-      list = pije;
+      if (!list.length) {
+        content.innerHTML = "<p style='color:white'>Ska produkte per kete kategori.</p>";
+        return;
+      }
+
+      for (let i = 0; i < list.length; i++) {
+        const img = list[i].image_path ? list[i].image_path : "Img/photo2.png";
+        const desc = list[i].description ? list[i].description : "";
+        const price = Number(list[i].price).toFixed(2) + "$";
+
+        content.innerHTML +=
+          '<div class="card">' +
+            '<img src="' + img + '">' +
+            '<div class="text">' +
+              '<h4>' + escapeHtml(list[i].title) + '</h4>' +
+              '<p>' + escapeHtml(desc) + ' <b>' + price + '</b></p>' +
+            '</div>' +
+          '</div>';
+      }
+    } catch (e) {
+      content.innerHTML = "<p style='color:white'>Gabim ne marrjen e te dhenave.</p>";
     }
-
-    if (name === "dessert") {
-      list = dessert;
-    }
-
-    if (name === "ushqim") {
-      list = ushqim;
-    }
-
-    for (var i = 0; i < list.length; i++) {
-      content.innerHTML +=
-        '<div class="card">' +
-          '<img src="' + list[i].img + '">' +
-          '<div class="text">' +
-            '<h4>' + list[i].title + '</h4>' +
-            '<p>' + list[i].desc + '</p>' +
-          '</div>' +
-        '</div>';
-    }
-
-    
   }
 
-    </script>
-   
+  function escapeHtml(str) {
+    return String(str)
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
+  }
+</script>
 
 
 

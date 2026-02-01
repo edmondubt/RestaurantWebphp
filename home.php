@@ -1,3 +1,14 @@
+<?php
+session_start();
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Cache-Control: post-check=0, pre-check=0", false);
+header("Pragma: no-cache");
+if (!isset($_SESSION['user_id'])) {
+    header('Location: login.php');
+    exit;
+}
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -184,6 +195,27 @@
             transition: 0.3s;
         }
 
+        .logout-btn {
+            background: transparent;
+            border: none;
+            color: #fff;
+            padding: 8px 15px;
+            border-radius: 5px;
+            transition: background 0.3s;
+            cursor: pointer;
+            font: inherit;
+            line-height: normal;
+        }
+        .nav-links li form{
+    margin: 0;
+    padding: 0;
+    display: inline;
+}
+
+        .logout-btn:hover {
+            background: #ff6347;
+        }
+
         .nav:hover {
             background: rgba(255, 255, 255, 0.25);
         }
@@ -255,13 +287,19 @@
         <nav>
             <div class="logo">AP Restaurant</div>
             <ul class="nav-links">
-                <li><a href="home.php">Home</a></li>
-                <li><a href="menu.php">Menu</a></li>
-                <li><a href="contact.php">Kontaktet</a></li>
-                <li><a href="login.php">Login</a></li>
+               <li><button class="logout-btn" onclick="window.location.href='home.php'">Home</button></li>
+                <li><button class="logout-btn" onclick="window.location.href='menu.php'">Menu</button></li>
+                <li><button class="logout-btn" onclick="window.location.href='contact.php'">Kontaktet</button></li>
+
+                <li>
+                    <form action="logout.php" method="post" style="display:inline;">
+                        <button type="submit" class="logout-btn">Logout</button>
+                    </form>
+                </li>
             </ul>
         </nav>
     </header>
+
 
 
     <div class="slider">

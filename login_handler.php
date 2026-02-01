@@ -20,12 +20,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_SESSION['username'] = $user['username'];
         $_SESSION['role']     = $user['role'];
 
-        if ($user['role'] === 'admin') {
-            header('Location: admin.php');
-        } else {
-            header('Location: home.php');
-        }
-        exit;
+       if ($user['role'] === 'admin') {
+        header("Location: admin_panel.php");
+    } else {
+        header("Location: home.php");
+    }
+    exit;
 
     } else {
         header('Location: login.php?error=invalid');
